@@ -70,6 +70,7 @@ int main() {
 
   // MPC is initialized here!
   MPC mpc;
+  cout << "MPC initialized" << endl;
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -91,7 +92,7 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
-
+		  cout << "telemetry initialized" << endl;
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
@@ -118,6 +119,7 @@ int main() {
 
 		  //fit 5th order polynomial
 		  auto coeffs = polyfit(ptsx_loc, ptsy_loc, 5);
+		  cout << "polynomial stated" << endl;
 
 		  //delay in seconds of actuator
 		  const double dt = 0.1;
@@ -136,16 +138,19 @@ int main() {
 		  //delayed state vector
 		  Eigen::VectorXd state(6);
 		  state << x0_del, y0_del, psi0_del, v0_del, cte0_del, epsi0_del;
+		  cout << "state vector created" << endl;
 
 		  //MPC solution
+		  cout << "calling MPC.Solve" << endl;
 		  auto vars = mpc.Solve(state, coeffs);
+		  cout << "MPC.Solve called" << endl;
 		  double steer_value = vars[0] / deg2rad(25);
 		  double throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value;
+          msgJson["steering_angle"] = steer_value / deg2rad(25);
           msgJson["throttle"] = throttle_value;
 
           //Display the MPC predicted trajectory 

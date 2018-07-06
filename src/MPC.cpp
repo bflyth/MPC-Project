@@ -1,6 +1,6 @@
 #include "MPC.h"
 #include <cppad/cppad.hpp>
-#include <cppad/solve.hpp>
+#include <cppad/ipopt/solve.hpp>
 #include "Eigen-3.3/Eigen/Core"
 
 using CppAD::AD;
@@ -48,20 +48,20 @@ class FG_eval {
 
 	  // Cost functions
 	  // The part of the cost based on the reference state.
-	  for (int t = 0; t < N; t++) {
+	  for (unsigned int t = 0; t < N; t++) {
 		  fg[0] += CppAD::pow(vars[cte_start + t], 2);
 		  fg[0] += CppAD::pow(vars[epsi_start + t], 2);
 		  fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
 	  }
 
 	  // Minimize the use of actuators.
-	  for (int t = 0; t < N - 1; t++) {
+	  for (unsigned int t = 0; t < N - 1; t++) {
 		  fg[0] += CppAD::pow(vars[delta_start + t], 2);
 		  fg[0] += CppAD::pow(vars[a_start + t], 2);
 	  }
 
 	  // Minimize the value gap between sequential actuations.
-	  for (int t = 0; t < N - 2; t++) {
+	  for (unsigned int t = 0; t < N - 2; t++) {
 		  fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
 		  fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
 	  }
@@ -119,7 +119,7 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  size_t i;
+  
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // TODO: Set the number of model variables (includes both states and inputs).
@@ -129,7 +129,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // 4 * 10 + 2 * 9
   size_t n_vars = state.size()*N+2*(N-1);
   // TODO: Set the number of constraints
-  size_t n_constraints = state.size()*10;
+  size_t n_constraints = state.size()*N;
+
+  std::cout << n_constraints << std::endl;
   
   const double x = state[0];
   const double y = state[1];
@@ -141,7 +143,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
   Dvector vars(n_vars);
-  for (int i = 0; i < n_vars; i++) {
+  for (unsigned int i = 0; i < n_vars; i++) {
     vars[i] = 0;
   }
 
@@ -156,6 +158,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
+  std::cout << "MPC __ initial states" << std::endl;
 
   // TODO: Set lower and upper limits for variables.
   // 1e3 is a reasonable limit for states, no need to go higher
@@ -182,26 +185,30 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vars_upperbound[cte_start] = cte;
   vars_upperbound[epsi_start] = epsi;
 
+  std::cout << "MPC __ initial states forced" << std::endl;
+
   // actuators limits
   for (int i = delta_start; i < a_start; i++) {
 	  vars_lowerbound[i] = -25 * M_PI / 180;
 	  vars_upperbound[i] = 25 * M_PI / 180;
   }
-
+  
   for (unsigned int i = a_start; i < n_vars; i++) {
 	  vars_lowerbound[i] = -1.;
 	  vars_upperbound[i] = 1.;
   }
+  std::cout << "MPC __ Actuator limits done" << std::endl;
+
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
   Dvector constraints_upperbound(n_constraints);
+
   for (unsigned int i = 0; i < n_constraints; i++) {
 	  constraints_lowerbound[i] = 0;
 	  constraints_upperbound[i] = 0;
   }
-
-
+  std::cout << "MPC __ Constraint Limits done" << std::endl;
 
   // constraints at initial state
   constraints_lowerbound[x_start] = x;
@@ -210,6 +217,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_lowerbound[v_start] = v;
   constraints_lowerbound[cte_start] = cte;
   constraints_lowerbound[epsi_start] = epsi;
+  std::cout << "MPC __ Lowerbound" << std::endl;
 
   constraints_upperbound[x_start] = x;
   constraints_upperbound[y_start] = y;
@@ -218,8 +226,11 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = cte;
   constraints_upperbound[epsi_start] = epsi;
 
+  std::cout << "MPC __ Initial Constraints" << std::endl;
+
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
+  std::cout << "MPC __ FG_Eval" << std::endl;
 
   //
   // NOTE: You don't have to worry about these options
@@ -241,11 +252,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
+  std::cout << "MPC __ solution created" << std::endl;
 
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
       options, vars, vars_lowerbound, vars_upperbound, constraints_lowerbound,
       constraints_upperbound, fg_eval, solution);
+  std::cout << "MPC __ ipopt solve called" << std::endl;
 
   //check some of the solution values
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
