@@ -1,0 +1,28 @@
+root@BB-Surface:/mnt/c/Users/banni/UdacityKits/Term2/CarND-MPC-Project-master/build# ./mpc
+MPC initialized
+Listening to port 4567
+Connected!!!
+2
+42["telemetry",{"ptsx":[-32.16173,-43.49173,-61.09,-78.29172,-93.05002,-107.7717],"ptsy":[113.361,105.941,92.88499,78.73102,65.34102,50.57938],"psi_unity":4.120315,"psi":3.733667,"x":-40.62008,"y":108.7301,"steering_angle":0,"throttle":0,"speed":1.074321E-05}]
+telemetry initialized
+polynomial stated
+state vector created
+calling MPC.Solve
+150
+MPC __ initial states
+MPC __ initial states forced
+MPC __ Actuator limits done
+MPC __ Constraint Limits done
+MPC __ Lowerbound
+MPC __ Initial Constraints
+MPC __ FG_Eval
+MPC __ solution created
+198
+cppad-20160000.1 error from a known source:
+vector: index greater than or equal vector size
+Error detected by false result for
+    i < length_
+at line 488 in the file
+    /usr/include/cppad/utility/vector.hpp
+mpc: /usr/include/cppad/utility/error_handler.hpp:207: static void CppAD::ErrorHandler::Default(bool, int, const char*, const char*, const char*): Assertion `false' failed.
+Aborted (core dumped)
