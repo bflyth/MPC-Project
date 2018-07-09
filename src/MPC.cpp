@@ -119,7 +119,7 @@ MPC::~MPC() {}
 
 vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
-  
+  //size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
   // TODO: Set the number of model variables (includes both states and inputs).
@@ -161,7 +161,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   std::cout << "MPC __ initial states" << std::endl;
 
   // TODO: Set lower and upper limits for variables.
-  // 1e3 is a reasonable limit for states, no need to go higher
 
   for (int i = 0; i < delta_start; i++) {
 	  vars_lowerbound[i] = -1e3;
@@ -253,6 +252,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
   std::cout << "MPC __ solution created" << std::endl;
+
+  //std::cout << vars.size() << std::endl;
 
   // solve the problem
   CppAD::ipopt::solve<Dvector, FG_eval>(
