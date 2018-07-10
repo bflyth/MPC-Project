@@ -99,59 +99,48 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-		  double delta = j[1]["steering_angle"];
-		  double a = j[1]["throttle"];
-
-		  //express waypoints coordinates with respect to the car local frame
-		  size_t n_pts = ptsx.size();
-		  auto ptsx_loc = Eigen::VectorXd(n_pts);
-		  auto ptsy_loc = Eigen::VectorXd(n_pts);
+		  
+		  vector<double> waypoints_x;
+		  vector<double> waypoints_y;
 
 
-		  for (unsigned int i = 0; i < n_pts; i++) {
+		  // transform waypoints to be from car's perspective
+		  // this means we can consider px = 0, py = 0, and psi = 0
+		  // greatly simplifying future calculations
+
+		  for (unsigned int i = 0; i < ptsx.size(); i++) {
 			  double dx = ptsx[i] - px;
 			  double dy = ptsy[i] - py;
-			  ptsx_loc(i) = dx * cos(psi) - dy * sin(psi);
-			  ptsy_loc(i) = dx * sin(psi) + dy * cos(psi);
+			  waypoints_x.push_back(dx * cos(-psi) - dy * sin(-psi));
+			  waypoints_y.push_back(dx * sin(-psi) + dy * cos(-psi));
 		  }
 
+		  double* ptrx = &waypoints_x[0];
+		  double* ptry = &waypoints_y[0];
+
+		  Eigen::Map<Eigen::VectorXd> waypoints_x_eig(ptrx, 6);
+		  Eigen::Map<Eigen::VectorXd> waypoints_y_eig(ptry, 6);
+		  
+		  auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
+		  double cte = polyeval(coeffs, 0);  // px = 0, py = 0
+		  double epsi = -atan(coeffs[1]);  // p
+
+		  double steer_value = j[1]["steering_angle"];
+		  double throttle_value = j[1]["throttle"];
 
 
-		  //fit 5th order polynomial
-		  auto coeffs = polyfit(ptsx_loc, ptsy_loc, 5);
-		  cout << "polynomial stated" << endl;
-
-		  //delay in seconds of actuator
-		  const double dt = 0.1;
-		  const double Lf = 2.67;
-
-
-		  //state after delay
-		  double x0_del = px + (v*cos(psi)*dt);
-		  double y0_del = py + (v*sin(psi)*dt);
-		  double psi0_del = psi + (v*delta / Lf * dt);
-		  double v0_del = v + a * dt;
-		  double cte0_del = coeffs[0] + (v*sin(atan(coeffs[1]))*dt);
-		  double epsi0_del = atan(coeffs[1]) + (v*delta / Lf * dt);
-
-
-		  //delayed state vector
 		  Eigen::VectorXd state(6);
-		  state << x0_del, y0_del, psi0_del, v0_del, cte0_del, epsi0_del;
-		  cout << "state vector created" << endl;
-
-		  //MPC solution
-		  cout << "calling MPC.Solve" << endl;
+		  state << 0, 0, 0, v, cte, epsi;
 		  auto vars = mpc.Solve(state, coeffs);
-		  cout << "MPC.Solve called" << endl;
-		  double steer_value = vars[0] / deg2rad(25);
-		  double throttle_value = vars[1];
+		  steer_value = vars[0];
+		  throttle_value = vars[1];
+		  
+		  json msgJson;
+		  // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
+		   // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
 
-          json msgJson;
-          // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
-          // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value / deg2rad(25);
-          msgJson["throttle"] = throttle_value;
+		  msgJson["steering_angle"] = steer_value / (deg2rad(25));
+		  msgJson["throttle"] = throttle_value / 1.5;
 
           //Display the MPC predicted trajectory 
           vector<double> mpc_x_vals;
@@ -159,6 +148,15 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
+
+		  for (unsigned int i = 2; i<vars.size(); i++) {
+			   if (i % 2 == 0) {
+				  mpc_x_vals.push_back(vars[i]);
+			  }
+			  else {
+				  mpc_y_vals.push_back(vars[i]);
+			  }
+		  }
 
           msgJson["mpc_x"] = mpc_x_vals;
           msgJson["mpc_y"] = mpc_y_vals;
@@ -169,6 +167,11 @@ int main() {
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
+
+		  for (unsigned int i = 4; i<100; i++) {
+			  next_x_vals.push_back(i);
+			  next_y_vals.push_back(polyeval(coeffs, i));
+		  }
 
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
