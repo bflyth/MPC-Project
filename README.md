@@ -3,6 +3,42 @@ Self-Driving Car Engineer Nanodegree Program
 
 ---
 
+## The Model
+Describe the model in detail, including the state, actuators, and update equations. 
+
+MPC consists of:
+1. Vehicle trajectory with a number of timesteps (N) and a time step duration (dt).
+2. Vehicle state and actuation variables that have upper and lower constraints. 
+	* x and y positions
+	* psi - yaw angle
+	* v - velocity 
+	* cte - cross track error
+	* epsi - error in yaw angle
+	* delta - steering angle
+	* a - acceleration
+3. A cost function that optimizes actuation for two systems... achieving a speed close to the reference velocity (ref_v), and a trajectory close to the reference path.
+	My weights were determined roughly from the Q&A video as a baseline, then adjusted to minimums as I toyed with (ref_v).
+	I made sure to include a cost function to penalize high velocity turns to make sure a car would not lose contact with the road or flip.
+	There is also a cost function to penalize rapid actuations. This should limit the wavering steering that is classic of CTE functions, and should relax the throttle to reduce stop and go.
+	
+## Timestep Length and Duration
+Discuss the reasoning behind the chosen (N) and (dt) values. Provide details of previous values used.
+
+(N) and (dt) are related in the sense that (N)*(dt) is the predictive range of the model. I tried to use values that would result in 4-7 seconds of range - such as 80 and .05 or 40 and .1 - but chose 10 steps and 100 ms, because the latency is expected to be 100 ms.
+
+## Polynomial Fitting and MPC Preprocessing
+A polynomial is fitted to waypoints. If preprocess waypoints, the vehicle state, and/or actuators prior to the MPC procedure it is described.
+
+The yellow line in the simulator is the reference trajectory fitted to a third order polynomial through reference points.
+
+Waypoints are shifted global coordinates to vehicle reference in lines 112-120.
+
+## Model Predictive Control With Latency
+Implement Model Predictive Control that handles a 100 millisecond latency. Provides details on how to deal with latency.
+
+The MPC manages 100 ms latency by predicting actuations 100 ms in advance. I accomplished this in lines 132-144 where I multiplied each relevant state variable - x, y, psi and v - by the latency of .1 seconds. 
+These state variables are then replaced in the state vector and passed to mpc.solve. This allows the car to move around the track with a top speed of 70 mph, more than enough for most interstates.
+
 ## Dependencies
 
 * cmake >= 3.5

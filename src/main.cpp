@@ -92,6 +92,7 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+		  const double Lf = 2.67;
 		  cout << "telemetry initialized" << endl;
           /*
           * TODO: Calculate steering angle and throttle using MPC.
@@ -125,12 +126,23 @@ int main() {
 		  double cte = polyeval(coeffs, 0);  // px = 0, py = 0
 		  double epsi = -atan(coeffs[1]);  // p
 
-		  double steer_value = j[1]["steering_angle"];
-		  double throttle_value = j[1]["throttle"];
-
-
 		  Eigen::VectorXd state(6);
 		  state << 0, 0, 0, v, cte, epsi;
+
+		  //define steering and throttle, define latency
+		  double steer_value = j[1]["steering_angle"];
+		  double throttle_value = j[1]["throttle"];
+		  const double latency = 0.1;
+
+		  //calculate values .1 seconds in the future
+		  double fut_x = 0 + v * cos(0) * latency;
+		  double fut_y = 0 + v * sin(0) * latency;
+		  double fut_psi = 0 - (v / Lf) * steer_value*deg2rad(25) * latency;
+		  double fut_v = v + throttle_value * latency;
+
+		  //update state to latent values
+		  state << fut_x, fut_y, fut_psi, fut_v, cte, epsi;
+
 		  auto vars = mpc.Solve(state, coeffs);
 		  steer_value = vars[0];
 		  throttle_value = vars[1];
@@ -139,7 +151,7 @@ int main() {
 		  // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
 		   // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
 
-		  msgJson["steering_angle"] = steer_value / (deg2rad(25));
+		  msgJson["steering_angle"] = steer_value / (deg2rad(25)*Lf);
 		  msgJson["throttle"] = throttle_value / 1.5;
 
           //Display the MPC predicted trajectory 
